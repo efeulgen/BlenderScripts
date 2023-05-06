@@ -28,16 +28,24 @@ width = max_y - min_y
 length = max_x - min_x
 height = max_z - min_z
 edge = max([width, length, height])
+
+###########################################################################
+##### properties ##########################################################
 cam_dist = edge * 3
+key_light_dist = cam_dist
+fill_light_dist = cam_dist * 1.5
+back_light_dist = cam_dist * 0.75
+###########################################################################
+###########################################################################
 
 ##################################################
 ##### camera #####################################
 cam_data = bpy.data.cameras.new(name="Camera")
 cam = bpy.data.objects.new(name="Camera", object_data=cam_data)
 cam.name = "main_cam"
-cam.location[0] = selected.location[0] + cam_dist     # x position
-cam.location[1] = selected.location[1]                # y position
-cam.location[2] = selected.location[2] + (height / 3) # z position
+cam.location[0] = selected.location[0] + cam_dist  # x position
+cam.location[1] = selected.location[1]                  # y position
+cam.location[2] = selected.location[2] + (height / 3)   # z position
 cam.rotation_euler[2] = math.radians(90)
 cam.rotation_euler[0] = math.radians(90)
 cam.scale = (edge/2, edge/2, edge/2)
@@ -91,7 +99,7 @@ bpy.ops.curve.primitive_bezier_circle_add() # key light global controller
 key_light_global_ctrl = bpy.context.active_object
 key_light_global_ctrl.name = "Key Light Global Controller"
 key_light_global_ctrl.location = selected.location
-key_light_global_ctrl.scale = (cam_dist, cam_dist, cam_dist)
+key_light_global_ctrl.scale = (key_light_dist, key_light_dist, key_light_dist)
 key_light_local_ctrl.select_set(True)
 bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
 key_light_global_ctrl.rotation_euler[2] = math.radians(-45)
@@ -118,7 +126,7 @@ bpy.ops.curve.primitive_bezier_circle_add() # fill light global controller
 fill_light_global_ctrl = bpy.context.active_object
 fill_light_global_ctrl.name = "Fill Light Global Controller"
 fill_light_global_ctrl.location = selected.location
-fill_light_global_ctrl.scale = (cam_dist * 1.5, cam_dist * 1.5, cam_dist * 1.5)
+fill_light_global_ctrl.scale = (fill_light_dist, fill_light_dist, fill_light_dist)
 fill_light_local_ctrl.select_set(True)
 bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
 fill_light_global_ctrl.rotation_euler[2] = math.radians(45)
@@ -143,7 +151,7 @@ bpy.ops.curve.primitive_bezier_circle_add() # back light global controller
 back_light_global_ctrl = bpy.context.active_object
 back_light_global_ctrl.name = "Back Light Global Controller"
 back_light_global_ctrl.location = selected.location
-back_light_global_ctrl.scale = (cam_dist*0.75, cam_dist*0.75, cam_dist*0.75)
+back_light_global_ctrl.scale = (back_light_dist, back_light_dist, back_light_dist)
 back_light_local_ctrl.select_set(True)
 bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
 back_light_global_ctrl.rotation_euler[2] = math.radians(180)
