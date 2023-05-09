@@ -30,7 +30,6 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
     def execute(self, context):
         if "Light Rig Root" in bpy.data.objects:
             raise Exception("There is already a light rig in your scene.")
-            return
         selected = bpy.context.active_object
         mesh_data = selected.data
 
@@ -58,7 +57,7 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
         ##### camera #########################################################
         cam_data = bpy.data.cameras.new(name="Camera")
         cam = bpy.data.objects.new(name="Camera", object_data=cam_data)
-        cam.name = selected.name + "_main_cam"
+        cam.name = "main_cam"
         cam.location[0] = selected.location[0] + cam_dist  # x position
         cam.location[1] = selected.location[1]                  # y position
         cam.location[2] = selected.location[2] + (height / 3)   # z position
@@ -73,7 +72,7 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
         ##### background #####################################################
         bpy.ops.mesh.primitive_plane_add()
         plane = bpy.context.active_object
-        plane.name = selected.name + "Background"
+        plane.name = "Background"
         plane.dimensions = (edge * 2 , edge * 3, 0)
         plane.location = selected.location - mathutils.Vector((0, 0, height / 2 + height / 10))
         bpy.ops.object.editmode_toggle()
@@ -205,9 +204,17 @@ class OBJECT_OT_clear_render_setup(bpy.types.Operator):
     bl_idname = "mesh.clear_render_setup"
     
     def execute(self, context):
-        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.context.active_object.select_set(False)
         bpy.context.scene.objects['Light Rig Root'].select_set(True)
-        #bpy.context.scene.outliner.delete(hierarchy=True)
+        for obj in bpy.context.scene.objects['Light Rig Root'].children:
+            obj.select_set(True)
+            if len(obj.children) > 0:
+                for child in obj.children:
+                    child.select_set(True)
+                    if len(child.children) > 0:
+                        for grandchild in child.children:
+                            grandchild.select_set(True)
+        bpy.ops.object.delete()
         return {'FINISHED'}
 ####################################################################################################
 ####################################################################################################
@@ -224,12 +231,12 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         
-        layout.operator(OBJECT_OT_generate_render_setup.bl_idname, text="Generate Render Setup")
+        layout.operator(OBJECT_OT_generate_render_setup.bl_idname, text="Generate setup for selected mesh")
         
         if "Light Rig Root" not in bpy.data.objects:
             return
         
-        layout.operator(OBJECT_OT_clear_render_setup.bl_idname)
+        layout.operator(OBJECT_OT_clear_render_setup.bl_idname, text="Clear setup for selected mesh")
         
         row = layout.row()
         row.label(text="Key Light Properties")
