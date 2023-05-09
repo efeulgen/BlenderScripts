@@ -1,11 +1,16 @@
 ###############################################################################
 ###############################################################################
 ##### Creates a 3-key lighting rig for selected object.
-##### Select the mesh you want to render and run the script. A 3-key lighting
-##### rig will be automatically generated.
-##### You can manipulate the light rig using 'Render Setup General' panel 
+##### Select the mesh you want to render and hit 'Generate render setup for selected 
+##### mesh' button. A light rig will be automatically generated.
+###############################################################################
+##### You can manipulate the light rig using 'Render Setup Generator' panel 
 ##### in the toolbar(press 'T' key while the cursor is on the 3D viewport 
-##### to toggle toolbar).
+##### to toggle toolbar). It is not recommended to manipulate the rig with 'G', 
+##### 'R' and 'S' hotkeys. Keep in mind to make light distance values uniform 
+##### for all axes.
+###############################################################################
+##### !! Do not change the name of elements of Light Rig !!
 ###############################################################################
 
 bl_info = {
@@ -21,7 +26,6 @@ import math
 import mathutils
 import bpy
 import bmesh
-
 
 class OBJECT_OT_generate_render_setup(bpy.types.Operator):
     bl_label = "Generate Render Setup"
@@ -55,19 +59,34 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
         back_light_dist = cam_dist * 0.75
 
         ##### camera #########################################################
-        cam_data = bpy.data.cameras.new(name="Camera")
-        cam = bpy.data.objects.new(name="Camera", object_data=cam_data)
+        bpy.ops.object.camera_add()
+        cam = bpy.context.active_object
         cam.name = "main_cam"
         cam.location[0] = selected.location[0] + cam_dist  # x position
         cam.location[1] = selected.location[1]                  # y position
-        cam.location[2] = selected.location[2] + (height / 3)   # z position
+        cam.location[2] = selected.location[2] # + (height / 3)   # z position
         cam.rotation_euler[2] = math.radians(90)
         cam.rotation_euler[0] = math.radians(90)
         cam.scale = (edge/2, edge/2, edge/2)
-        hypotenuse = math.sqrt(math.pow(cam.location[0], 2) + math.pow(cam.location[2], 2))
-        angle = math.radians(90) - (math.asin(cam.location[0]/hypotenuse))
-        cam.rotation_euler[0] -= angle
-        bpy.context.scene.collection.objects.link(cam)
+        
+        bpy.ops.curve.primitive_bezier_circle_add() # camera local controller
+        cam_local_ctrl = bpy.context.object
+        cam_local_ctrl.name = "Camera Local Controller"
+        cam_local_ctrl.location = cam.location
+        cam.select_set(True)
+        bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
+        
+        bpy.ops.curve.primitive_bezier_circle_add() # camera global controller
+        cam_global_ctrl = bpy.context.object
+        cam_global_ctrl.name = "Camera Global Controller"
+        cam_global_ctrl.location = selected.location
+        cam_global_ctrl.scale = (cam_dist, cam_dist, cam_dist)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        cam_local_ctrl.select_set(True)
+        bpy.ops.object.parent_set(type='OBJECT', keep_transform=False)
+        hypotenuse = math.sqrt(math.pow(cam_dist, 2) + math.pow(edge/2, 2))
+        angle = math.radians(90) - (math.asin(cam_dist/hypotenuse))
+        cam_global_ctrl.rotation_euler[1] = angle * -1
 
         ##### background #####################################################
         bpy.ops.mesh.primitive_plane_add()
@@ -87,6 +106,7 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
         new_bevel_mod.width_pct = 20
         new_bevel_mod.segments = 10
         bpy.ops.object.shade_smooth()
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
         ##### key light rig ############################################################
         bpy.ops.object.light_add(type='AREA') # key light
@@ -173,8 +193,9 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
         
         ##### root ##########################################################
         bpy.ops.object.empty_add(location=selected.location)
-        bpy.context.object.name = "Light Rig Root"
-        cam.select_set(True)
+        root = bpy.context.object
+        root.name = "Light Rig Root"
+        cam_global_ctrl.select_set(True)
         plane.select_set(True)
         key_light_global_ctrl.select_set(True)
         fill_light_global_ctrl.select_set(True)
@@ -194,7 +215,18 @@ class OBJECT_OT_generate_render_setup(bpy.types.Operator):
             obj.lock_scale[2] = True
         return {'FINISHED'}
 
+
+####################################################################################################
+####################################################################################################
+
+
+class OBJECT_OT_reset_rig_transforms(bpy.types.Operator):
+    bl_label = "Reset Light Rig Transformations"
+    bl_idname = "mesh.reset_rig_transforms"
     
+    def execute(self, context):
+        return {'FINISHED'}
+
 ####################################################################################################
 ####################################################################################################
 
@@ -216,13 +248,15 @@ class OBJECT_OT_clear_render_setup(bpy.types.Operator):
                             grandchild.select_set(True)
         bpy.ops.object.delete()
         return {'FINISHED'}
+
+
 ####################################################################################################
 ####################################################################################################
 
 
 class RenderSetupGeneratorPanel(bpy.types.Panel):
     """ Creates a render setup with 3-key lighting """
-    bl_label = "Render Setup Generator Panel"
+    bl_label = "Render Setup Generator"
     bl_idname = "SCENE_PT_renderSetup"
     bl_space_type = 'VIEW_3D' # PROPERTIES
     bl_region_type = 'TOOLS' # WINDOW
@@ -230,14 +264,33 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
     
     def draw(self, context):
         layout = self.layout
-        
-        layout.operator(OBJECT_OT_generate_render_setup.bl_idname, text="Generate setup for selected mesh")
+        layout.label(text="Select a mesh and hit 'Generate Render Setup' to") 
+        layout.label(text=" create a 3-key lighting rig.")
+        layout.label(text="!! Do not change the names of elements in the rig !!")
+        layout.label(text="")
+        layout.operator(OBJECT_OT_generate_render_setup.bl_idname, text="Generate Render Setup") # for selected mesh
         
         if "Light Rig Root" not in bpy.data.objects:
             return
         
-        layout.operator(OBJECT_OT_clear_render_setup.bl_idname, text="Clear setup for selected mesh")
+        layout.operator(OBJECT_OT_reset_rig_transforms.bl_idname, text="Reset Transformations")
+        layout.operator(OBJECT_OT_clear_render_setup.bl_idname, text="Clear Render Setup")
         
+        row = layout.row()
+        row.label(text=("Camera Properties"))
+        col = row.column(align=True)
+        col.prop(context.scene.objects['Camera Global Controller'], "scale", text="Camera Distance")
+        col.prop(context.scene.objects['Camera Global Controller'], "rotation_euler", text="Camera Global Rotation")
+        col.prop(context.scene.objects['Camera Local Controller'], "rotation_euler", text="Camera Local Rotation")
+        
+        layout.label(text="")
+        row = layout.row()
+        row.label(text="Background Properties")
+        col = row.column(align=True)
+        col.prop(context.scene.objects['Background'], "scale", text="Background Scale")
+        col.prop(context.scene.objects['Background'], "location", text="Background Location")
+        
+        layout.label(text="")
         row = layout.row()
         row.label(text="Key Light Properties")
         col = row.column(align=True)
@@ -245,6 +298,7 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
         col.prop(context.scene.objects['Key Light Global Controller'], "rotation_euler", text="Key Light Global Rotation")
         col.prop(context.scene.objects['Key Light Local Controller'], "rotation_euler", text="Key Light Local Rotation")
         
+        layout.label(text="")
         row = layout.row()
         row.label(text="Fill Light Properties")
         col = row.column(align=True)
@@ -252,6 +306,7 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
         col.prop(context.scene.objects['Fill Light Global Controller'], "rotation_euler", text="Fill Light Global Rotation")
         col.prop(context.scene.objects['Fill Light Local Controller'], "rotation_euler", text="Fill Light Local Rotation")
         
+        layout.label(text="")
         row = layout.row()
         row.label(text="Back Light Properties")
         col = row.column(align=True)
@@ -266,11 +321,13 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
 
 def register():
     bpy.utils.register_class(OBJECT_OT_generate_render_setup)
+    bpy.utils.register_class(OBJECT_OT_reset_rig_transforms)
     bpy.utils.register_class(OBJECT_OT_clear_render_setup)
     bpy.utils.register_class(RenderSetupGeneratorPanel)
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_generate_render_setup)
+    bpy.utils.unregister_class(OBJECT_OT_reset_rig_transforms)
     bpy.utils.unregister_class(OBJECT_OT_clear_render_setup)
     bpy.utils.unregister_class(RenderSetupGeneratorPanel)
     
