@@ -225,6 +225,24 @@ class OBJECT_OT_reset_rig_transforms(bpy.types.Operator):
     bl_idname = "mesh.reset_rig_transforms"
     
     def execute(self, context):
+        context.scene.objects['Camera Global Controller'].scale = (1, 1, 1)
+        context.scene.objects['Camera Global Controller'].rotation_euler = (0, math.radians(-9.46), 0)
+        context.scene.objects['Camera Local Controller'].rotation_euler = (0, 0, 0)
+        
+        context.scene.objects['Background'].scale = (1, 1, 1)
+        context.scene.objects['Background'].location = (0, 0, 0)
+        
+        context.scene.objects['Key Light Global Controller'].scale = (1, 1, 1)
+        context.scene.objects['Key Light Global Controller'].rotation_euler = (0, 0, math.radians(-45))
+        context.scene.objects['Key Light Local Controller'].rotation_euler =(0, 0, 0)
+        
+        context.scene.objects['Fill Light Global Controller'].scale = (1, 1, 1)
+        context.scene.objects['Fill Light Global Controller'].rotation_euler = (0, 0, math.radians(45))
+        context.scene.objects['Fill Light Local Controller'].rotation_euler = (0, 0, 0)
+        
+        context.scene.objects['Back Light Global Controller'].scale = (1, 1, 1)
+        context.scene.objects['Back Light Global Controller'].rotation_euler = (0, math.radians(-80), math.radians(180))
+        context.scene.objects['Back Light Local Controller'].rotation_euler = (0, 0, 0)
         return {'FINISHED'}
 
 ####################################################################################################
@@ -236,16 +254,19 @@ class OBJECT_OT_clear_render_setup(bpy.types.Operator):
     bl_idname = "mesh.clear_render_setup"
     
     def execute(self, context):
-        bpy.context.active_object.select_set(False)
+        for obj in bpy.context.scene.objects:
+            if obj in bpy.context.scene.objects['Light Rig Root'].children:
+                obj.select_set(True)
+                if len(obj.children) > 0:
+                    for child in obj.children:
+                        child.select_set(True)
+                        if len(child.children) > 0:
+                            for grandchild in child.children:
+                                grandchild.select_set(True)
+            else:
+                obj.select_set(False)
+                
         bpy.context.scene.objects['Light Rig Root'].select_set(True)
-        for obj in bpy.context.scene.objects['Light Rig Root'].children:
-            obj.select_set(True)
-            if len(obj.children) > 0:
-                for child in obj.children:
-                    child.select_set(True)
-                    if len(child.children) > 0:
-                        for grandchild in child.children:
-                            grandchild.select_set(True)
         bpy.ops.object.delete()
         return {'FINISHED'}
 
@@ -282,6 +303,7 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
         col.prop(context.scene.objects['Camera Global Controller'], "scale", text="Camera Distance")
         col.prop(context.scene.objects['Camera Global Controller'], "rotation_euler", text="Camera Global Rotation")
         col.prop(context.scene.objects['Camera Local Controller'], "rotation_euler", text="Camera Local Rotation")
+        col.prop(context.scene.objects['main_cam'], "scale", text="Camera Size")
         
         layout.label(text="")
         row = layout.row()
@@ -297,6 +319,7 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
         col.prop(context.scene.objects['Key Light Global Controller'], "scale", text="Key Light Distance")
         col.prop(context.scene.objects['Key Light Global Controller'], "rotation_euler", text="Key Light Global Rotation")
         col.prop(context.scene.objects['Key Light Local Controller'], "rotation_euler", text="Key Light Local Rotation")
+        col.prop(context.scene.objects['Key Light'], "scale", text="Key Light Size")
         
         layout.label(text="")
         row = layout.row()
@@ -305,6 +328,7 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
         col.prop(context.scene.objects['Fill Light Global Controller'], "scale", text="Fill Light Distance")
         col.prop(context.scene.objects['Fill Light Global Controller'], "rotation_euler", text="Fill Light Global Rotation")
         col.prop(context.scene.objects['Fill Light Local Controller'], "rotation_euler", text="Fill Light Local Rotation")
+        col.prop(context.scene.objects['Fill Light'], "scale", text="Fill Light Size")
         
         layout.label(text="")
         row = layout.row()
@@ -313,6 +337,7 @@ class RenderSetupGeneratorPanel(bpy.types.Panel):
         col.prop(context.scene.objects['Back Light Global Controller'], "scale", text="Back Light Distance")
         col.prop(context.scene.objects['Back Light Global Controller'], "rotation_euler", text="Back Light Global Rotation")
         col.prop(context.scene.objects['Back Light Local Controller'], "rotation_euler", text="Back Light Local Rotation")
+        col.prop(context.scene.objects['Back Light'], "scale", text="Back Light Size")
 
 
 ####################################################################################################
